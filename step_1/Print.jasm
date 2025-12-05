@@ -1,0 +1,9 @@
+public class Print {
+  public static main ([java/lang/String)V {
+    
+    getstatic java/lang/System.out java/io/PrintStream
+    ldc "Test from JASM"
+    invokevirtual java/io/PrintStream.println(java/lang/String)V
+    return
+  }
+}

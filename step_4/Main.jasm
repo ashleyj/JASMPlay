@@ -1,0 +1,13 @@
+public class Main {
+  public static main ([java/lang/String)V {
+   
+    new com/example/Print
+    dup
+    invokespecial com/example/Print.<init>()V
+    astore 1
+    aload 1
+    ldc "Test from JASM"
+    invokevirtual com/example/Print.doPrint(java/lang/String)V
+    return
+  }
+}

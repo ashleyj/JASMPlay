@@ -1,0 +1,15 @@
+public class com/example/Print {
+
+  public <init>()V {
+    aload 0
+    invokespecial java/lang/Object.<init>()V
+    return
+  }
+
+  public doPrint(java/lang/String)V {
+    getstatic java/lang/System.out java/io/PrintStream
+    aload 1
+    invokevirtual java/io/PrintStream.println(java/lang/String)V
+    return
+  }
+}

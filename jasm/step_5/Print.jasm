@@ -1,0 +1,53 @@
+public class Print {
+  public static main ([java/lang/String)V {
+
+    // max counter
+    iconst 3
+    istore 1
+
+    iconst 0
+    // counter for loop
+    istore 2
+
+    `loop`:
+
+    iload 2
+    iload 1
+
+
+    if_icmpge end
+    // push string and counter
+    ldc "Print Count from JASM: "
+    iload 2
+
+    // call print
+    invokestatic Print.doPrint(java/lang/String, I)V
+
+    //increment index 2 by 1
+    iinc 2,[1]
+    goto loop
+
+
+    `end`:
+    return
+
+  }
+
+  private static doPrint(java/lang/String, I)V {
+    ldc "test"
+    invokedynamic makeConcat()java/lang/String {
+      invokestatic java/lang/invoke/StringConcatFactory.makeConcat(
+                java/lang/invoke/MethodHandles$Lookup,
+                java/lang/String,
+                java/lang/invoke/MethodType
+      )java/lang/invoke/CallSite
+      [] 
+    }
+
+    astore 3
+    getstatic java/lang/System.out java/io/PrintStream
+    aload 3
+    invokevirtual java/io/PrintStream.println(java/lang/String)V
+    return
+  }
+}

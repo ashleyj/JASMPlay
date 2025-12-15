@@ -33,11 +33,11 @@ public class Step4 {
     mainMethod.visitInsn(DUP);
 
     // doPrint("Test from Java ASM");
-    mainMethod.visitMethodInsn(INVOKESPECIAL, "Print", "<init>", "()V");
+    mainMethod.visitMethodInsn(INVOKESPECIAL, "Print", "<init>", "()V", false);
     mainMethod.visitVarInsn(ASTORE, 1);
     mainMethod.visitVarInsn(ALOAD, 1);
     mainMethod.visitLdcInsn("Test from Java ASM");
-    mainMethod.visitMethodInsn(INVOKEVIRTUAL, "Print", "doPrint", "(" + stringType + ")V");
+    mainMethod.visitMethodInsn(INVOKEVIRTUAL, "Print", "doPrint", "(" + stringType + ")V", false);
 
     mainMethod.visitInsn(RETURN);
     mainMethod.visitMaxs(0, 0);
@@ -53,7 +53,7 @@ public class Step4 {
     // constructor public Print() {}
     MethodVisitor constructorMethod = printClass.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
     constructorMethod.visitIntInsn(ALOAD, 0);
-    constructorMethod.visitMethodInsn(INVOKESPECIAL, Type.getInternalName(Object.class), "<init>", "()V");
+    constructorMethod.visitMethodInsn(INVOKESPECIAL, Type.getInternalName(Object.class), "<init>", "()V", false);
     constructorMethod.visitInsn(RETURN);
     constructorMethod.visitMaxs(0, 0);
     constructorMethod.visitEnd();
@@ -64,8 +64,7 @@ public class Step4 {
     doPrintMethod.visitFieldInsn(GETSTATIC, Type.getInternalName(java.lang.System.class), "out",
         PrintStream.class.descriptorString());
     doPrintMethod.visitIntInsn(ALOAD, 1);
-    doPrintMethod.visitMethodInsn(INVOKEVIRTUAL, Type.getInternalName(PrintStream.class), "println",
-        "(" + stringType + ")V");
+    doPrintMethod.visitMethodInsn(INVOKEVIRTUAL, Type.getInternalName(PrintStream.class), "println", "(" + stringType + ")V", false);
 
     doPrintMethod.visitInsn(RETURN);
     doPrintMethod.visitMaxs(0, 0);

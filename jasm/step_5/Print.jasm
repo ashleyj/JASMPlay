@@ -37,8 +37,8 @@ public class Print {
     ldc "test"
     invokedynamic makeConcat()java/lang/String {
       invokestatic java/lang/invoke/StringConcatFactory.makeConcat(
-                java/lang/invoke/MethodHandles$Lookup,
                 java/lang/String,
+                java/lang/invoke/MethodHandles$Lookup,
                 java/lang/invoke/MethodType
       )java/lang/invoke/CallSite
       [] 

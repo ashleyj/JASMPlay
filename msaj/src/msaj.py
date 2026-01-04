@@ -6,6 +6,16 @@ import sys
 from enum import Enum
 
 
+class TAG(Enum):
+    STRING_TYPE = 1
+    INT_TYPE = 2
+    CLASS_TYPE = 7
+    STRING_REF_TYPE = 8
+    FIELD_REF_TYPE = 9
+    METHOD_REF_TYPE = 10
+    NAME_DESCRIPTOR_REF_TYPE = 12
+
+
 class OPCODE(Enum):
     # The following is pulled directly from org.objectweb.asm Opcodes.class (v 9.9)
     # The JVM opcode values (with the MethodVisitor method name used to visit them in comment, and
@@ -170,6 +180,9 @@ class OPCODE(Enum):
     IFNULL = 198  # visitJumpInsn
     IFNONNULL = 199  # -
 
+    def _getString(self):
+        return OPCODE[self.value]
+
 
 @dataclass
 class Attribute:
@@ -189,22 +202,72 @@ class MethodInfo:
 
 @dataclass
 class PoolItem:
+    type: TAG
     index: int
     value: str | None
     parentRef: List[int] | None
+    parents: List[PoolItem]
+
+    def __init__(self, type: TAG, index: int, value: str, parentRef: List[int] = []):
+        self.type = type
+        self.index = index
+        self.value = value
+        self.parentRef = parentRef
+        self.parents = []
+
+    def __str__(self):
+        values = ""
+        if self.type == TAG.STRING_REF_TYPE:
+            values = ":".join(f"{x.__str__()}" for x in self.parents)
+            return f"{values}"
+
+        if self.type == TAG.NAME_DESCRIPTOR_REF_TYPE:
+            values = ":".join(f"{x.__str__()}" for x in self.parents)
+            return f"{values}"
+
+        if self.type == TAG.STRING_TYPE:
+            return self.value
+
+        if self.type == TAG.CLASS_TYPE:
+            values = ".".join(f"{x.__str__()}" for x in self.parents)
+            return f"{values}"
+
+        if self.type == TAG.FIELD_REF_TYPE:
+            values = ".".join(f"{x.__str__()}" for x in self.parents)
+            return f"{values}"
+
+        if self.type == TAG.METHOD_REF_TYPE:
+            values = ".".join(
+                f"{x.__str__()}" for x in self.parents)
+            return f"{values}"
+        else:
+            return f"{self.index}"
+
+
+class Pool:
+    items: List[PoolItem] = None
+
+    def __init__(self):
+        self.items = []
+
+    def append(self, poolItem: PoolItem):
+        self.items.append(poolItem)
+        for item in self.items:
+            for parentRef in item.parentRef:
+                existingItem = next(
+                    x for x in self.items if x.index == parentRef)
+                if existingItem and len([x for x in item.parents if x.index == existingItem.index]) == 0:
+                    item.parents.append(existingItem)
 
 
 def read_instruction(instruction: int, instructionList: List[int]) -> List[int]:
-    count = 0
+    count = 1
 
-    if instruction == OPCODE.GETSTATIC.value:
-        count = 1
+    if instruction < OPCODE.BIPUSH.value:
+        count = 0
 
-    if instruction == OPCODE.INVOKEVIRTUAL.value:
-        count = 1
-
-    if instruction == OPCODE.LDC.value:
-        count = 1
+    if instruction >= OPCODE.RETURN.value and instruction < OPCODE.GETSTATIC.value:
+        count = 0
 
     return instructionList[0:count]
 
@@ -236,26 +299,26 @@ def get_byte_from_pool(poolIndex: int, data: bytes, index: int) -> tuple():
     tagBytes, newPosition = get_bytes(data, index, 1)
     tag = int.from_bytes(tagBytes)
 
-    match tag:
-        case 1:  # string
+    match TAG(tag):
+        case TAG.STRING_TYPE:
             stringLengthInBytes, newPosition = get_bytes(data, newPosition, 2)
             stringLength = int.from_bytes(stringLengthInBytes, "big")
             returnValue, newPosition = get_bytes(
                 data, newPosition, stringLength)
             returnValue = returnValue.decode("utf-8")
-            poolItem = PoolItem(poolIndex, returnValue, None)
-        case 7:  # class
+            poolItem = PoolItem(TAG(tag), poolIndex, returnValue)
+        case TAG.CLASS_TYPE:
             classRef, newPosition = get_bytes(data, newPosition, 2)
             returnValue = int.from_bytes(classRef, "big")
-            poolItem = PoolItem(poolIndex, None, [returnValue])
-        case 8:
+            poolItem = PoolItem(TAG(tag), poolIndex, None, [returnValue])
+        case TAG.STRING_REF_TYPE:
             classRef, newPosition = get_bytes(data, newPosition, 2)
             returnValue = int.from_bytes(classRef, "big")
-            poolItem = PoolItem(poolIndex, None, [returnValue])
-        case 9 | 10 | 11 | 12:  # field | method | interface | Name-Descriptor
+            poolItem = PoolItem(TAG(tag), poolIndex, None, [returnValue])
+        case TAG.FIELD_REF_TYPE | TAG.METHOD_REF_TYPE | TAG.NAME_DESCRIPTOR_REF_TYPE:
             nameIdentifier, newPosition = get_bytes(data, newPosition, 2)
             descriptorIdentifier, newPosition = get_bytes(data, newPosition, 2)
-            poolItem = PoolItem(poolIndex, None, [int.from_bytes(
+            poolItem = PoolItem(TAG(tag), poolIndex, None, [int.from_bytes(
                 nameIdentifier, "big"), int.from_bytes(descriptorIdentifier, "big")])
         case _:
             print(f"Can't read tag value {tag}")
@@ -325,31 +388,17 @@ poolCountLength = int.from_bytes(poolCount, 'big')
 print("\n")
 print("Constant Pool:")
 
-poolItems: List[PoolItem] = []
+pool = Pool()
 for i in range(1, poolCountLength):
     value, curPosition = get_byte_from_pool(i, data, curPosition)
-    poolItems.append(value)
+    pool.append(value)
 
 
-def resolve_pool_item(index: int, pool: List[PoolItem]):
-    resolvedValue = ""
-
-    resolvedItem = next((p for p in pool if p.index == index), None)
-    if resolvedItem is not None:
-        if resolvedItem.parentRef is not None:
-            for parentRef in resolvedItem.parentRef:
-                value = resolve_pool_item(parentRef, pool)
-                if len(value) > 0:
-                    resolvedValue += value
-
-            return f"{resolvedValue}"
-        else:
-            resolvedValue = resolvedItem.value
-
-    return resolvedValue
+def resolve_pool_item(poolItem: PoolItem):
+    return poolItem.__str__()
 
 
-for poolItemIndex, poolItem in enumerate(poolItems):
+for poolItemIndex, poolItem in enumerate(pool.items):
     index = poolItemIndex + 1
 
     ref = ""
@@ -357,10 +406,11 @@ for poolItemIndex, poolItem in enumerate(poolItems):
         ref = "".join(f"#{x}" for x in poolItem.parentRef if len(
             poolItem.parentRef) > 0)
         resolvedItem = "// "
-        resolvedItem += resolve_pool_item(index, poolItems)
-        print(f"\t{index} {ref:^10}{resolvedItem:>60}")
+        resolvedItem += resolve_pool_item(poolItem)
+        print(f"\t{index:<4} {ref:<6}{resolvedItem:>60}")
     else:
-        print(f"\t{index} {resolve_pool_item(index, poolItems):^10}")
+        resolvedItem = resolve_pool_item(poolItem)
+        print(f"\t{index:<4} {resolvedItem}")
 
 
 accessFlags, curPosition = get_bytes(data, curPosition, 2)
@@ -414,11 +464,15 @@ while True:
 
     if len(readInstruction) == 0:
         currentIndex = currentIndex + 1
-        print(f"\t{OPCODE(instruction)}")
+        print(f"\t{OPCODE(instruction).name.lower()}")
     else:
         currentIndex = currentIndex + len(readInstruction)
         instructionAsString = " ".join(f"{x}" for x in readInstruction)
-        print(f"\t{OPCODE(instruction)} #{instructionAsString}")
+        resolvedPoolItem = "// "
+        resolvedPoolItem += [x for x in pool.items if x.index ==
+            readInstruction[0]][0].__str__()
+        print(f"\t{OPCODE(instruction).name.lower(): <25} #{
+            instructionAsString:^4}{resolvedPoolItem:>60}")
 
     if instruction == OPCODE.RETURN.value:
         exit(0)
